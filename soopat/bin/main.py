@@ -18,12 +18,13 @@ Contact: {author} <{author_email}>
               help='the configration file to store username or password',
               default=Path('~').expanduser().joinpath('.soopat.ini'),
               show_default=True)
+@click.option('-s', '--section', help='the section name of config', default='common', show_default=True)
 @click.pass_context
 def cli(ctx, **kwargs):
     """Soopat Client"""
     ctx.ensure_object(dict)
     ctx.obj['sp'] = Soopat()
-    ctx.obj['pc'] = PassConfig(configfile=kwargs['configfile'])
+    ctx.obj['pc'] = PassConfig(configfile=kwargs['configfile'], section=kwargs['section'])
 
 
 @click.command()
@@ -32,7 +33,12 @@ def cli(ctx, **kwargs):
 def register(ctx, **kwargs):
     """register an account"""
     sp = ctx.obj['sp']
-    sp.register(auto=kwargs['auto'])
+    pc = ctx.obj['pc']
+    res = sp.register(auto=kwargs['auto'])
+    if res:
+        pc.username = res[0]
+        pc.password = res[1]
+        pc.save()
 
 
 download_epilog = '''

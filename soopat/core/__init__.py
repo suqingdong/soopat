@@ -30,7 +30,7 @@ class Soopat(object):
             self.logger.error('Login Failed')
             return False
 
-        self.logger.info('login successful!')
+        self.logger.info(f'login successful! [username: {username}]')
         return True
 
     def register(self, email=None, nickname=None, password=None, auto=True):
@@ -67,6 +67,7 @@ class Soopat(object):
         soup = bs4.BeautifulSoup(res.text, 'html.parser')
         if '您已经注册成功' in res.text:
             self.logger.info(f'您已经注册成功!\n用户名: {email}, 密码: {password}')
+            return email, password
         else:
             error_msg = soup.select_one('.main_2').text.strip()
             self.logger.error(f'注册失败!\n{error_msg}')
@@ -82,8 +83,12 @@ class Soopat(object):
         url = f'{self.base_url}/Home/DownloadChoice/{ID}'
 
         resp = self.session.get(url)
-        res = re.findall(rf'"(/Home/DownloadRemote/.+?\.pdf\?Server={server})"', resp.text)[0]
-        pdf_url = self.base_url + res
+        res = re.findall(rf'"(/Home/DownloadRemote/.+?\.pdf\?Server={server})"', resp.text)
+        if not res:
+            self.logger.error(f'pdf not exists for ID: {ID}')
+            exit(1)
+
+        pdf_url = self.base_url + res[0]
         return pdf_url
 
     def download(self, pdf_url, outfile=None):
@@ -93,7 +98,8 @@ class Soopat(object):
         r = self.session.get(pdf_url, stream=True)
         if r.headers.get('Content-Type') != 'application/pdf':
             if '当日额度已满' in r.text:
-                self.logger.warning(f'当日额度已满，无法下载！[{self.username}]')
+                self.logger.warning(f'当日额度已满，无法下载！')
+                exit(1)
 
         if not outfile:
             disposition = r.headers.get('Content-Disposition')
