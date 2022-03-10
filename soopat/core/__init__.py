@@ -6,12 +6,14 @@ import urllib
 import bs4
 import click
 import requests
+from simple_loggers import SimpleLogger
 
 
 class Soopat(object):
     base_url = 'http://www.soopat.com'
 
-    def __init__(self):
+    def __init__(self, logger=None):
+        self.logger = SimpleLogger('Soopat')
         self.session = requests.session()
 
     def login(self, username=None, password=None):
@@ -25,10 +27,10 @@ class Soopat(object):
         self.session.post(url, data=payload)
 
         if not self.session.cookies.get('auth'):
-            print('Login Failed')
+            self.logger.error('Login Failed')
             return False
 
-        print('login successful!')
+        self.logger.info('login successful!')
         return True
 
     def register(self, email=None, nickname=None, password=None, auto=True):
@@ -64,13 +66,10 @@ class Soopat(object):
         res = self.session.post(f'{url}&code=doregister', data=payload, allow_redirects=False)
         soup = bs4.BeautifulSoup(res.text, 'html.parser')
         if '您已经注册成功' in res.text:
-            print('您已经注册成功!')
-            print(f'your username: {email}')
-            print(f'your password: {password}')
+            self.logger.info(f'您已经注册成功!\n用户名: {email}, 密码: {password}')
         else:
-            print('注册失败!')
-            print(soup.select_one('.main_2').text.strip())
-
+            error_msg = soup.select_one('.main_2').text.strip()
+            self.logger.error(f'注册失败!\n{error_msg}')
 
     def get_pdf_url(self, raw_url, server=''):
         """get the url of pdf
@@ -83,8 +82,7 @@ class Soopat(object):
         url = f'{self.base_url}/Home/DownloadChoice/{ID}'
 
         resp = self.session.get(url)
-        res = re.findall(
-            rf'"(/Home/DownloadRemote/.+?\.pdf\?Server={server})"', resp.text)[0]
+        res = re.findall(rf'"(/Home/DownloadRemote/.+?\.pdf\?Server={server})"', resp.text)[0]
         pdf_url = self.base_url + res
         return pdf_url
 
@@ -95,13 +93,11 @@ class Soopat(object):
         r = self.session.get(pdf_url, stream=True)
         if r.headers.get('Content-Type') != 'application/pdf':
             if '当日额度已满' in r.text:
-                print(f'当日额度已满，无法下载！[{self.username}]')
+                self.logger.warning(f'当日额度已满，无法下载！[{self.username}]')
 
         if not outfile:
             disposition = r.headers.get('Content-Disposition')
-            outfile = urllib.parse.unquote(
-                disposition).split('filename=', 1)[1]
-            print(outfile)
+            outfile = urllib.parse.unquote(disposition).split('filename=', 1)[1]
 
         self.savefile(r, outfile)
 
@@ -109,7 +105,7 @@ class Soopat(object):
         with open(outfile, 'wb') as out:
             for chunk in stream.iter_content(chunk_size=1024):
                 out.write(chunk)
-        print(f'>>> saved file to: {outfile}')
+        self.logger.info(f'>>> saved file to: {outfile}')
 
 
 if __name__ == "__main__":

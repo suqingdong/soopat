@@ -1,11 +1,17 @@
 import click
 
 from soopat.core import Soopat
+from soopat import version_info
 
 
-@click.group()
+epilog = '''
+Contact: {author} <{author_email}>
+'''.format(**version_info)
+@click.group(epilog=epilog)
+@click.version_option(version=version_info['version'])
 @click.pass_context
 def cli(ctx, **kwargs):
+    """Soopat Client"""
     sp = Soopat()
     ctx.ensure_object(dict)
     ctx.obj['sp'] = sp
@@ -35,8 +41,7 @@ Examples:
 @click.option('-p', '--password', help='the password to login', prompt='password')
 @click.option('-o', '--outfile', help='the output filename')
 def download(ctx, **kwargs):
-    """download the pdf for given url or ID"""
-    print(kwargs)
+    """download the pdf"""
     sp = ctx.obj['sp']
     if sp.login(kwargs['username'], kwargs['password']):
         sp.download(kwargs['url'], outfile=kwargs['outfile'])
