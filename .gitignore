@@ -1,0 +1,4 @@
+tests
+.vscode
+*__pycache__
+*py[co]
