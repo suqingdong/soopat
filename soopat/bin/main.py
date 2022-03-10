@@ -1,4 +1,7 @@
+from pathlib import Path
+
 import click
+from passconfig import PassConfig
 
 from soopat.core import Soopat
 from soopat import version_info
@@ -7,14 +10,20 @@ from soopat import version_info
 epilog = '''
 Contact: {author} <{author_email}>
 '''.format(**version_info)
+
+
 @click.group(epilog=epilog)
 @click.version_option(version=version_info['version'])
+@click.option('-c', '--configfile',
+              help='the configration file to store username or password',
+              default=Path('~').expanduser().joinpath('.soopat.ini'),
+              show_default=True)
 @click.pass_context
 def cli(ctx, **kwargs):
     """Soopat Client"""
-    sp = Soopat()
     ctx.ensure_object(dict)
-    ctx.obj['sp'] = sp
+    ctx.obj['sp'] = Soopat()
+    ctx.obj['pc'] = PassConfig(configfile=kwargs['configfile'])
 
 
 @click.command()
@@ -34,17 +43,27 @@ Examples:
     soopat download -i 202010463344 -u your_username -p your_password -o out.pdf
 '''
 
+
 @click.command(no_args_is_help=True, epilog=download_epilog)
 @click.pass_context
 @click.option('-i', '--url', help='the url or ID to download', required=True)
-@click.option('-u', '--username', help='the username to login', prompt='username')
-@click.option('-p', '--password', help='the password to login', prompt='password')
+@click.option('-u', '--username', help='the username to login')
+@click.option('-p', '--password', help='the password to login')
 @click.option('-o', '--outfile', help='the output filename')
 def download(ctx, **kwargs):
     """download the pdf"""
     sp = ctx.obj['sp']
-    if sp.login(kwargs['username'], kwargs['password']):
+    pc = ctx.obj['pc']
+
+    username = kwargs['username']
+    password = kwargs['password']
+
+    if not all([username, password]):
+        username, password = pc.get()
+
+    if sp.login(username, password):
         sp.download(kwargs['url'], outfile=kwargs['outfile'])
+        pc.save()
 
 
 def main():
